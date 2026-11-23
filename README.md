@@ -25,6 +25,9 @@ poteto-starter/
     │   ├── pstack-antigravity.md    # Maps Cursor-specific pstack names to Antigravity tools
     │   └── pstack-models.md         # Per-role model selection (adjust via /setup-pstack)
     ├── tools/
+    │   ├── sync-all.bat             # Runs sync-pstack and sync-chief-of-staff
+    │   ├── sync-chief-of-staff.bat  # Syncs upstream Chief-of-Staff SKILL.md & templates
+    │   ├── sync-chief-of-staff.ps1
     │   ├── sync-pstack.bat          # Clones/updates upstream pstack via sparse-checkout
     │   └── sync-pstack.ps1
     ├── plugins/
@@ -39,10 +42,19 @@ poteto-starter/
 ## Quick Start
 
 ### 1. Create or copy into a project
-Use this repository as a GitHub template (or copy its files into your project root, excluding `.git` if copying manually):
+**New project:** Click **Use this template** on [`Jakkrich/poteto-starter`](https://github.com/Jakkrich/poteto-starter), or create and clone with GitHub CLI:
 
 ```powershell
-robocopy D:\devtools\agent-starter-kit D:\path\to\your-project /E /XD .git /XF README.md
+gh repo create <your-project> --template Jakkrich/poteto-starter --clone
+```
+
+**Existing project:** Run from your project root (`.`) to clone into a temp folder, copy the starter files while excluding `.git`, `.agents\plugins`, and `README.md`, then clean up:
+
+```powershell
+$tmp = Join-Path $env:TEMP 'poteto-starter'
+git clone --depth 1 https://github.com/Jakkrich/poteto-starter.git $tmp
+robocopy $tmp . /E /XD .git "$tmp\.agents\plugins" /XF README.md
+Remove-Item $tmp -Recurse -Force
 ```
 
 ### 2. Install `pstack` locally
@@ -52,9 +64,24 @@ Run the sparse-checkout installer script to pull `pstack` from `cursor/plugins` 
 .\.agents\tools\sync-pstack.bat
 ```
 
-Re-run the same script anytime to update `pstack` via `git pull --ff-only`. Pass `-Reinstall` for a clean sparse clone.
+Re-run the same script anytime to update `pstack` via `git pull --ff-only`. Pass `-Reinstall` for a clean sparse clone, or `-NoPause` for non-interactive runs.
 
-### 3. Bootstrap the project with AI
+### 3. Update `chief-of-staff` (or sync all)
+To pull the latest `SKILL.md` and `templates/` from [`Jakkrich/Chief-of-Staff`](https://github.com/Jakkrich/Chief-of-Staff) (`main`) while preserving `poteto-starter`'s local-first `harness.md`:
+
+```powershell
+.\.agents\tools\sync-chief-of-staff.bat
+```
+
+By default, `sync-chief-of-staff` preserves `.agents/skills/chief-of-staff/harness.md` and reports whether upstream `harness.md` differs. Pass `-IncludeHarness` to overwrite `harness.md` from upstream, or `-NoPause` for non-interactive runs.
+
+To update both `pstack` and `chief-of-staff` in one step:
+
+```powershell
+.\.agents\tools\sync-all.bat
+```
+
+### 4. Bootstrap the project with AI
 Open the project in your AI coding agent and send this prompt once:
 
 ```text
