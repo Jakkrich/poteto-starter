@@ -152,16 +152,34 @@ foreach ($hookFile in @(
   }
 }
 
-# Apply tracked official pstack logo if present in .agents/assets/pstack-logo.png
-$CustomLogo = Join-Path $AgentsDir 'assets\pstack-logo.png'
+# Use a single official logo.png in .agents/plugins/pstack/assets/logo.png and rewrite manifests
+$CustomLogo = Join-Path $AgentsDir 'assets\logo.png'
 if (Test-Path -LiteralPath $CustomLogo) {
   $assetsDir = Join-Path $PstackDir 'assets'
   New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
-  Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $assetsDir 'pstack-icon.png') -Force
   Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $assetsDir 'logo.png') -Force
-  $claudePluginDir = Join-Path $PstackDir '.claude-plugin'
-  if (Test-Path -LiteralPath $claudePluginDir) {
-    Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $claudePluginDir 'icon.png') -Force
+  foreach ($oldAsset in @(
+    (Join-Path $assetsDir 'pstack-icon.png'),
+    (Join-Path $assetsDir 'pstack-icon.prompt.txt'),
+    (Join-Path $PstackDir '.claude-plugin\icon.png')
+  )) {
+    if (Test-Path -LiteralPath $oldAsset) {
+      Remove-Item -LiteralPath $oldAsset -Force
+    }
+  }
+  $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+  foreach ($mf in @(
+    (Join-Path $PstackDir 'plugin.json'),
+    (Join-Path $PstackDir '.antigravity-plugin\plugin.json'),
+    (Join-Path $PstackDir '.codex-plugin\plugin.json'),
+    (Join-Path $PstackDir '.muse-plugin\plugin.json')
+  )) {
+    if (Test-Path -LiteralPath $mf) {
+      $raw = [System.IO.File]::ReadAllText($mf, $utf8NoBom)
+      if ($raw.Contains('pstack-icon.png')) {
+        [System.IO.File]::WriteAllText($mf, $raw.Replace('pstack-icon.png', 'logo.png'), $utf8NoBom)
+      }
+    }
   }
 }
 

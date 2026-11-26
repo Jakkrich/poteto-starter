@@ -45,10 +45,10 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
 
 ## 5. Change Log (newest at top)
 
-### 2026-11-27 · Antigravity (Chief of Staff) · Use official `cursor/plugins` `pstack` `logo.png`
-- **What:** Added `.agents/assets/pstack-logo.png` (downloaded from `https://raw.githubusercontent.com/cursor/plugins/main/pstack/assets/logo.png`); updated `.agents/tools/sync-pstack.{ps1,sh}` to apply it over `.agents/plugins/pstack/assets/{pstack-icon.png,logo.png}` and `.claude-plugin/icon.png`; updated `.agents/tools/install-project.{ps1,sh}`, `FOR_AGENTS.md`, and `README.md` to distribute `.agents/assets/`.
-- **Why:** Use the official `poteto`/`cursor/plugins` `pstack` logo on Antigravity/Claude/Codex plugin manifests instead of `pstack-claude`'s purple icon.
-- **Verification:** `sync-pstack.bat -NoPause` applied matching SHA-256 (`672F6791589EF758B0CED2C4C477913FA2758623C438E265639A0D539CE90695`), PowerShell AST + `sh.exe -n` + `non_ascii=0`, and temp-dir `install-project.ps1` check passed.
+### 2026-11-27 · Antigravity (Chief of Staff) · Use single official `logo.png` for on-project `pstack`
+- **What:** Renamed tracked icon to `.agents/assets/logo.png` (downloaded from `https://raw.githubusercontent.com/cursor/plugins/main/pstack/assets/logo.png`); updated `.agents/tools/sync-pstack.{ps1,sh}` to place only `.agents/plugins/pstack/assets/logo.png`, delete `pstack-icon.png`/`pstack-icon.prompt.txt`/`.claude-plugin/icon.png`, and rewrite `pstack-icon.png` -> `logo.png` in plugin manifests; updated `README.md` and `FOR_AGENTS.md`.
+- **Why:** Keep a single `logo.png` file across both starter-kit assets and synced `pstack` plugin manifests.
+- **Verification:** `sync-pstack.bat -NoPause` left exactly 1 `.png` (`assets/logo.png`) in `.agents/plugins/pstack/`, Antigravity `GetAllPlugins` resolved `.../assets/logo.png`, and `non_ascii=0` + PowerShell AST + `sh.exe -n` passed.
 - **Pending / Notes for next agent:** None.
 
 ### 2026-11-26 · Antigravity (Chief of Staff) · Harden on-project installer, upgrader, and sync scripts against all overwrite & POSIX edge cases

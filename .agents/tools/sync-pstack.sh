@@ -85,14 +85,25 @@ rm -f \
   "$PSTACK_DIR/hooks/codex-hooks.json" \
   "$PSTACK_DIR/hooks/copilot-hooks.json"
 
-CUSTOM_LOGO="$AGENTS_DIR/assets/pstack-logo.png"
+CUSTOM_LOGO="$AGENTS_DIR/assets/logo.png"
 if [ -f "$CUSTOM_LOGO" ]; then
   mkdir -p "$PSTACK_DIR/assets"
-  cp "$CUSTOM_LOGO" "$PSTACK_DIR/assets/pstack-icon.png"
   cp "$CUSTOM_LOGO" "$PSTACK_DIR/assets/logo.png"
-  if [ -d "$PSTACK_DIR/.claude-plugin" ]; then
-    cp "$CUSTOM_LOGO" "$PSTACK_DIR/.claude-plugin/icon.png"
-  fi
+  rm -f \
+    "$PSTACK_DIR/assets/pstack-icon.png" \
+    "$PSTACK_DIR/assets/pstack-icon.prompt.txt" \
+    "$PSTACK_DIR/.claude-plugin/icon.png"
+  for mf in \
+    "$PSTACK_DIR/plugin.json" \
+    "$PSTACK_DIR/.antigravity-plugin/plugin.json" \
+    "$PSTACK_DIR/.codex-plugin/plugin.json" \
+    "$PSTACK_DIR/.muse-plugin/plugin.json"; do
+    if [ -f "$mf" ]; then
+      tmp_mf=$(mktemp "${TMPDIR:-/tmp}/mf.XXXXXX")
+      sed 's/pstack-icon\.png/logo.png/g' "$mf" > "$tmp_mf"
+      mv "$tmp_mf" "$mf"
+    fi
+  done
 fi
 
 VER="unknown"
