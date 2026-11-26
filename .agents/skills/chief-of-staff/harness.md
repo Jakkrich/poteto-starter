@@ -1,61 +1,60 @@
-# Harness map
+# Harness map (On-project `pstack-claude`)
 
-Read this once per chat after you know which tools this session actually has. Map every Cursor name in the skill with the matching row. Never pass a field or value the tool schema rejects.
+Read this once per chat after identifying which tools this session exposes. This starter kit runs **strictly on-project** using `michael-denyer/pstack-claude` synced into `.agents/plugins/pstack/` — never fall back to global `~/.gemini`, `~/.claude`, `~/.codex`, `~/.grok`, or `~/.agents` pstack installs. Never pass a field or value a tool schema rejects.
 
-If `<pstack>/docs/harness/claude-code.md` exists and this session is Claude Code, that file wins over this one.
-If `<pstack>/skills/poteto-mode/references/agy-tools.md` exists and this session is Antigravity, read it alongside this file.
+## Detect & Reference Mapping
 
-## Detect
+| Session has | Harness | Additional reference to read |
+|---|---|---|
+| `invoke_subagent` / `ask_question`, or Antigravity runtime | **Antigravity (`agy`)** | `<poteto>/references/agy-tools.md` |
+| `spawn_agent`, or `$CODEX_HOME` / `$CODEX_THREAD_ID` | **Codex** | `<poteto>/references/codex-tools.md` |
+| `Agent` / `AskUserQuestion` / `TodoWrite`, or Claude Code runtime | **Claude Code** | None (`pstack-claude` skills are pre-translated for Claude Code) |
+| `spawn_subagent` / `run_terminal_command`, or `$GROK_HOME` | **Grok (`Grok Build` / `Grok Bot`)** | `<poteto>/references/grok.md` (plus `.agents/skills/make-bot-ui/SKILL.md` for Grok Bot webhook UIs + Tailscale) |
+| Other subagent tool (`Task` / `spawn`) | **Other** | Spawn the closest general worker; kickoff still starts with `Read <poteto>/worker.md before anything else.` |
 
-| Session has | Harness |
-|---|---|
-| `invoke_subagent` / `ask_question`, or paths under `~/.gemini/` | Antigravity |
-| `Task` tool and `subagent_type: poteto-agent` | Cursor |
-| `Agent` tool and `subagent_type: pstack:poteto-agent`, or paths under `~/.claude/` | Claude Code |
-| Neither, but a `Task`/`Agent`/`spawn` tool exists | Other. Spawn the closest general worker. First line of the kickoff is still `Read <poteto>/worker.md before anything else.` |
+## Resolve pstack (On-Project Only)
 
-## Resolve pstack
+`<pstack>` is ALWAYS `<repo-root>/.agents/plugins/pstack`. `<poteto>` is `<pstack>/skills/poteto-mode`.
 
-`<pstack>` is the folder that holds `skills/` and `docs/`. `<poteto>` is `<pstack>/skills/poteto-mode`. Search in order and take the first hit that contains `skills/poteto-mode/SKILL.md`:
-
-1. Workspace local copy: `.agents/plugins/pstack/` (preferred, self-contained in this starter kit).
-2. `$PSTACK_ROOT` if set.
-3. When running on Antigravity: `~/.gemini/config/plugins/pstack/` or `~/.gemini/antigravity/plugins/pstack/`.
-4. Newest `~/.cursor/plugins/cache/cursor-public/pstack/*/`.
-5. A path under `~/.claude/plugins/` ending in `skills/poteto-mode/SKILL.md`. Walk up to the folder that holds `skills/` and `docs/`.
-6. Newest `~/.cursor/plugins/` or `~/.claude/plugins/` copy whose plugin manifest has the highest `version`.
-
-If several match at one step, take the highest `version` in `plugin.json`, `.antigravity-plugin/plugin.json`, `.cursor-plugin/plugin.json`, or `.claude-plugin/plugin.json`.
+1. Verify `.agents/plugins/pstack/skills/poteto-mode/SKILL.md` exists in the repo.
+2. If missing, bootstrap it locally first — never install globally:
+   - Windows: `.agents/tools/sync-pstack.bat -NoPause`
+   - POSIX (macOS/Linux/WSL/Git Bash): `sh .agents/tools/sync-pstack.sh`
+3. Read `<poteto>/SKILL.md` in full, plus the harness reference file from the Detect table above.
 
 ## Paths
 
-| Role | Antigravity | Cursor | Claude Code | Other |
+| Role | Antigravity | Codex | Claude Code | Grok |
 |---|---|---|---|---|
-| This skill (local-first) | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` |
-| Project enable file | `AGENTS.md` or `GEMINI.md` | `.cursor/rules/chief-of-staff.mdc` | `CLAUDE.md` (or `AGENTS.md` if no `CLAUDE.md`) | `AGENTS.md` |
-| Model roles | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` |
-| Slash command | `/chief-of-staff`, `/poteto-mode` | `/chief-of-staff`, `/poteto-mode` | `/chief-of-staff`, `/pstack:poteto-mode` | The harness's skill name. Prefix `pstack:` when that harness prefixes plugin skills |
+| Chief of Staff skill | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` | `.agents/skills/chief-of-staff/` |
+| Project enable file | `GEMINI.md` / `AGENTS.md` / `.agents/rules/chief-of-staff.md` | `AGENTS.md` | `CLAUDE.md` (or `AGENTS.md`) | `AGENTS.md` |
+| Model sheet | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` | `.agents/rules/pstack-models.md` |
+| Bundled `pstack-claude` skills | `.agents/plugins/pstack/skills/<name>/SKILL.md` (`deslop`, `thermos`, `babysit`, `fix-ci`, `fix-merge-conflicts`, etc.) | Same | Same | Same |
+| Repo-local extra skills | `.agents/skills/verify-project/SKILL.md`, `.agents/skills/make-bot-ui/SKILL.md` | Same | Same | Same |
 
-## Spawn a worker
+## Spawn a worker (On-Project Mode)
 
-| Field | Antigravity | Cursor | Claude Code | Other |
+| Field | Antigravity | Codex | Claude Code | Grok Build |
 |---|---|---|---|---|
-| Tool | `invoke_subagent` | `Task` | `Agent` | The session's subagent tool |
-| Type | `TypeName: "self"` for workers that write files, run commands, or use MCP; `"poteto-agent"` or `"research"` only for read-only work | `subagent_type: "poteto-agent"` | `subagent_type: "pstack:poteto-agent"` | The pstack poteto-agent type if listed, else a general worker with the kickoff below |
-| Background | Omit (runs asynchronously by default) | `run_in_background: true` | Omit (default background) | Background if the schema has it |
-| Model | Role line from `.agents/rules/pstack-models.md` (`inherit`, `flash_lite`, `flash`, `pro`; never pass Cursor slugs; on `auto` / `inherit-parent`, omit `Model` or use `"inherit"` and `TypeName: "self"`) | Role line from `pstack-models.mdc` (`auto` / `inherit-parent`: omit `model` and spawn `generalPurpose`) | Map the Cursor slug with `<pstack>/docs/harness/claude-code.md` (`opus`/`sonnet`/`haiku`/`fable` + `effort`). `auto` / `inherit-parent` or non-Claude slugs: omit `model` (and for `auto` / `inherit-parent`, spawn `general-purpose`) | Pass only values the schema lists |
-| Cloud | `Workspace: "share"` or `"branch"` (isolated worktree); skip cloud-agent steps with one line | `environment: "cloud"` | `isolation: "worktree"` | Isolated worktree. Skip dashboard/cloud-agent steps with one line |
-| Question tool | `ask_question` | `AskQuestion` | `AskUserQuestion` | Ask in the reply |
-| Run another pstack skill | `read_file` on `<pstack>/skills/<name>/SKILL.md` and follow it | `Read <pstack>/skills/<name>/SKILL.md` and follow it | Same. The `Skill` tool refuses most pstack skills. Tell the operator `/pstack:<name>` | Same read-and-follow |
+| Tool | `invoke_subagent` | `spawn_agent` | `Agent` | `spawn_subagent` |
+| Writer worker type | `TypeName: "self"` (for file writes, commands, or MCP) | Default agent (no `pstack:*` type; instruct to read `<poteto>/worker.md` first) | `subagent_type: "general-purpose"` (unless `--plugin-dir .agents/plugins/pstack` registered `pstack:poteto-agent`) | Omit `subagent_type` |
+| Read-only / review type | `"research"`, `"comment-sicko"`, `"thermo-nuclear-review-subagent"`, or `"thermo-nuclear-code-quality-review-subagent"` (use `"self"` if shell/MCP needed) | Default agent; tell `comment-sicko` / `thermos` workers to read `<pstack>/agents/<agent>.md` in full first | `subagent_type: "Explore"` (say `"do not edit files"`); tell `comment-sicko` / `thermos` workers to read `<pstack>/agents/<agent>.md` first unless `pstack:*` is registered | Omit `subagent_type`; say `"do not edit files"` |
+| Background | Asynchronous by default | Asynchronous by default | Asynchronous by default (omit `run_in_background`) | `run_in_background: true` (default) |
+| Model | `.agents/rules/pstack-models.md`: accepts ONLY `inherit`, `pro`, `flash`, `flash_lite`. Omit `Model` or pass `"inherit"` on `inherit-parent`/`auto`. Never pass Cursor/Claude slugs | Pass `model` / `reasoning_effort` ONLY when exposed in `spawn_agent` schema; omit on `inherit-parent`/`auto` | Map `.agents/rules/pstack-models.md` (`opus`, `sonnet`, `haiku` + `effort`); omit `model` on `inherit-parent`/`auto` | Omit `model` on `inherit-parent`/`auto`; no effort field |
+| Isolated worktree | `Workspace: "share"` or `"branch"` | Create dedicated worktree via `git worktree add -b <branch> <path> <base-sha>` and pass path in brief | `isolation: "worktree"` | `isolation: "worktree"` |
+| Question tool | `ask_question` | Ask in plain text or host prompt | `AskUserQuestion` | `ask_user_question` |
+| Track tasks | Uncommitted `todo.md` / `.audit/<slug>.todo.md` (and `update_steps` if available) | Host task list or `todo.md` | `TodoWrite` / `TaskCreate` | `todo_write` |
+| Schedule / Loop | `schedule` (`DurationSeconds` or `CronExpression`) when operator asks | Host loop / timer if available | `/loop` or `ScheduleWakeup` if available | `scheduler_create` |
+| Run another pstack skill | `read_file` `<pstack>/skills/<name>/SKILL.md` and follow it | Read `<pstack>/skills/<name>/SKILL.md` and follow it | `Read` `<pstack>/skills/<name>/SKILL.md` and follow it | `read_file` `<pstack>/skills/<name>/SKILL.md` and follow it |
 
 Kickoff, every harness:
 
-```
+```text
 Read <poteto>/worker.md before anything else.
 ```
 
-Then the goal, the done-check, file pointers, the branch, and the path `<poteto>/SKILL.md`.
+Then include the goal, the done-check, proof requested, file pointers, the branch/worktree, and the full path `<poteto>/SKILL.md`.
 
-## Cursor-only steps
+## Unavailable host features
 
-When a step needs Cursor Automations, Bugbot, Cursor cloud agents, or a built-in PR tool the harness lacks: write `Skipped in <harness>: <step>. <reason>.` and continue. Do not stop, ask, or retry. For a PR, use the forge CLI (`gh`, `glab`, `origin`) instead of skipping. In Antigravity, use `schedule` only when the operator asks for a session timer or cron.
+When a playbook step asks for a host-only feature missing in the current harness (such as Bugbot cloud triggers, Cursor Automations, or a built-in PR UI): use the forge CLI (`gh` / `glab`) for PR operations, or write `Skipped in <harness>: <step>. <reason>.` and continue without stopping.

@@ -75,9 +75,11 @@ try {
   }
 
   foreach ($existing in Get-ChildItem -LiteralPath $TemplatesDestDir -Force) {
+    if ($existing.Name -eq 'AI_HANDOFF.md') { continue }
     Remove-Item -LiteralPath $existing.FullName -Recurse -Force
   }
   foreach ($tmpl in Get-ChildItem -LiteralPath $UpstreamTemplatesDir -Force) {
+    if ($tmpl.Extension -eq '.mdc' -or $tmpl.Name -like 'cursor-*') { continue }
     Copy-Item -LiteralPath $tmpl.FullName -Destination (Join-Path $TemplatesDestDir $tmpl.Name) -Recurse -Force
   }
 

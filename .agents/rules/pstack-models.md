@@ -1,21 +1,25 @@
----
-description: pstack per-role model choices (overrides skill defaults)
-trigger: always_on
----
-# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
-# `inherit-parent` or `auto` as a value: the role runs on the parent chat model (omit subagent `Model`). Alias entries in a panel list still count toward its fan-out.
-# defaults: 2
-# budget: large (xhigh)
-feature, refactoring: claude-opus-5-5-high
-bug-fix: claude-opus-5-5-high
-perf-issue: claude-opus-5-5-high
-hillclimb: claude-opus-5-5-high
-judgment and prose: claude-opus-5-5-high
-hardest tasks: gemini-4-hydrogen-xhigh
-reflect tooling: claude-opus-5-5-high
-reflect judgment, divergent, synthesizer: claude-opus-5-5-high
-arena runners: gemini-4-hydrogen-xhigh, claude-opus-5-5-high, gemini-4-carbon-high
-arena cross-judge pool: gemini-4-hydrogen-xhigh, claude-opus-5-5-high, gemini-4-carbon-high
-swarm workers: claude-opus-5-5-high
-architect runners: gemini-4-hydrogen-xhigh, claude-opus-5-5-high, gemini-4-carbon-high
-interrogate reviewers: gemini-4-hydrogen-xhigh, claude-opus-5-5-high, gemini-4-carbon-high
+# pstack-models (on-project cross-harness role sheet)
+# Used by Antigravity, Codex, Claude Code, and Grok Build via .agents/skills/chief-of-staff/harness.md
+#
+# Values per harness:
+# - Portable default: inherit-parent (omits model parameter so subagents inherit the active session model)
+# - Antigravity: inherit | pro | flash | flash_lite
+# - Claude Code: opus @xhigh | opus @high | sonnet @high | haiku @medium (or opus | sonnet | haiku)
+# - Codex: <codex-model> @high (only when spawn_agent exposes model / reasoning_effort)
+# - Grok Build: inherit-parent (spawn_subagent omits model unless explicitly supported)
+#
+# defaults: 3
+# default effort: session
+feature, refactoring: inherit-parent
+bug-fix: inherit-parent
+perf-issue: inherit-parent
+hillclimb: inherit-parent
+judgment and prose: inherit-parent
+strongest judgment: inherit-parent
+arena runners: inherit-parent
+arena cross-judge pool: inherit-parent
+swarm workers: inherit-parent
+interrogate reviewers: inherit-parent
+thermos reviewers: inherit-parent
+no-comments reviewer: inherit-parent
+architect runners: inherit-parent

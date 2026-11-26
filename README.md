@@ -1,99 +1,84 @@
-# poteto-starter
+# agent-starter-kit (`poteto-starter`)
 
-Self-contained agentic development starter kit combining **Chief of Staff** (`chief-of-staff`), **pstack** (`poteto-mode`), structured project governance (`AI_HANDOFF.md`), and a per-repo task board (`.context/cos-board.md`).
+Self-contained, **on-project only** agentic development starter kit combining **Chief of Staff** (`chief-of-staff`), **`pstack-claude`** (`michael-denyer/pstack-claude`), structured project governance (`AI_HANDOFF.md`), and a per-repo task board (`.context/cos-board.md`).
 
-Works across **Antigravity**, **Claude Code**, **Cursor**, **Codex**, and **Gemini CLI** using repo-local configuration with no global plugin install required.
+Designed for **Antigravity (`agy`)**, **Codex**, **Claude Code**, and **Grok (`Grok Build` / `Grok Bot`)** — with **zero `.cursor/` directory** and **zero global plugin installs**.
 
 ---
 
 ## Repository Structure
 
 ```text
-poteto-starter/
-├── AGENTS.md                        # Bootstrap instructions (Codex / Cursor / Antigravity)
-├── CLAUDE.md                        # Bootstrap instructions (Claude Code)
-├── GEMINI.md                        # Bootstrap instructions (Gemini / Antigravity)
+agent-starter-kit/
+├── FOR_AGENTS.md                    # Exact install & upgrade runbook for AI agents
+├── AGENTS.md                        # Entry instructions (Codex / Antigravity / Grok)
+├── CLAUDE.md                        # Entry instructions (Claude Code)
+├── GEMINI.md                        # Entry instructions (Antigravity / Gemini)
 ├── AI_HANDOFF.md                    # Architecture, repo invariants, pitfalls, and change log
 ├── .context/
 │   └── cos-board.md                 # Active / Archive Chief of Staff board + latest summary
-├── .cursor/
-│   └── rules/
-│       └── chief-of-staff.mdc       # Cursor rule (alwaysApply: true)
 └── .agents/
-    ├── .gitignore                   # Ignores plugins/ so upstream pstack stays out of host commits
+    ├── .gitignore                   # Ignores plugins/ and .cache/ so synced pstack stays out of git
+    ├── starter-kit.json             # Provenance manifest (sourceRepo, commit, pstackVersion)
+    ├── docs/
+    │   └── pstack-guide-th/         # Thai guide preserved outside synced pstack folder
     ├── rules/
-    │   ├── pstack-antigravity.md    # Maps Cursor-specific pstack names to Antigravity tools
-    │   └── pstack-models.md         # Per-role model selection (adjust via /setup-pstack)
+    │   ├── chief-of-staff.md        # Always-on Chief of Staff rule (replaces old .cursor/*.mdc)
+    │   ├── pstack-antigravity.md    # Antigravity adapter notes referencing agy-tools.md
+    │   └── pstack-models.md         # Cross-harness per-role model sheet (default: inherit-parent)
     ├── tools/
-    │   ├── sync-all.bat             # Runs sync-pstack and sync-chief-of-staff
-    │   ├── sync-chief-of-staff.bat  # Syncs upstream Chief-of-Staff SKILL.md & templates
-    │   ├── sync-chief-of-staff.ps1
-    │   ├── sync-pstack.bat          # Clones/updates upstream pstack via sparse-checkout
-    │   └── sync-pstack.ps1
+    │   ├── install-project.ps1      # On-project installer & idempotent upgrader (Windows)
+    │   ├── install-project.sh       # On-project installer & idempotent upgrader (POSIX)
+    │   ├── upgrade-starter-kit.bat  # One-command Windows upgrader wrapper
+    │   ├── sync-pstack.ps1          # Sparse-clones/updates michael-denyer/pstack-claude
+    │   ├── sync-pstack.sh           # POSIX counterpart for sync-pstack
+    │   ├── sync-pstack.bat
+    │   ├── sync-chief-of-staff.ps1  # Syncs upstream Chief-of-Staff SKILL.md (skips *.mdc)
+    │   ├── sync-chief-of-staff.bat
+    │   └── sync-all.bat             # Syncs pstack-claude + chief-of-staff
     ├── plugins/
-    │   └── pstack/                  # Installed by sync-pstack (gitignored)
+    │   └── pstack/                  # Synced from michael-denyer/pstack-claude (gitignored)
     └── skills/
-        ├── chief-of-staff/          # Chief of Staff skill (local-first harness.md)
+        ├── chief-of-staff/          # Chief of Staff skill + multi-harness map (harness.md)
+        ├── make-bot-ui/             # Grok Bot webhook + Tailscale UI skill
         └── verify-project/          # Customizable project verification skill template
 ```
 
 ---
 
-## Quick Start
+## สั่ง AI ติดตั้งลงโปรเจกต์แบบ On-Project เท่านั้น (Install via AI)
 
-### 1. Create or copy into a project
-**New project:** Click **Use this template** on [`Jakkrich/poteto-starter`](https://github.com/Jakkrich/poteto-starter), or create and clone with GitHub CLI:
-
-```powershell
-gh repo create <your-project> --template Jakkrich/poteto-starter --clone
-```
-
-**Existing project:** Run from your project root (`.`) to clone into a temp folder, copy the starter files while excluding `.git`, `.agents\plugins`, and `README.md`, then clean up:
-
-```powershell
-$tmp = Join-Path $env:TEMP 'poteto-starter'
-git clone --depth 1 https://github.com/Jakkrich/poteto-starter.git $tmp
-robocopy $tmp . /E /XD .git "$tmp\.agents\plugins" /XF README.md
-Remove-Item $tmp -Recurse -Force
-```
-
-### 2. Install `pstack` locally
-Run the sparse-checkout installer script to pull `pstack` from `cursor/plugins` into `.agents/plugins/pstack/` (double-click in Windows Explorer or run in PowerShell/CMD):
-
-```powershell
-.\.agents\tools\sync-pstack.bat
-```
-
-Re-run the same script anytime to update `pstack` via `git pull --ff-only`. Pass `-Reinstall` for a clean sparse clone, or `-NoPause` for non-interactive runs.
-
-### 3. Update `chief-of-staff` (or sync all)
-To pull the latest `SKILL.md` and `templates/` from [`Jakkrich/Chief-of-Staff`](https://github.com/Jakkrich/Chief-of-Staff) (`main`) while preserving `poteto-starter`'s local-first `harness.md`:
-
-```powershell
-.\.agents\tools\sync-chief-of-staff.bat
-```
-
-By default, `sync-chief-of-staff` preserves `.agents/skills/chief-of-staff/harness.md` and reports whether upstream `harness.md` differs. Pass `-IncludeHarness` to overwrite `harness.md` from upstream, or `-NoPause` for non-interactive runs.
-
-To update both `pstack` and `chief-of-staff` in one step:
-
-```powershell
-.\.agents\tools\sync-all.bat
-```
-
-### 4. Bootstrap the project with AI
-Open the project in your AI coding agent and send this prompt once:
+เปิดโปรเจกต์ปลายทางใน **Antigravity**, **Codex**, **Claude Code**, หรือ **Grok** แล้วส่ง Prompt นี้ให้ AI (ไม่ต้องลง global plugin ใดๆ):
 
 ```text
-/chief-of-staff Bootstrap the development platform for this project from the starter kit:
-1. Inspect the real codebase, configs, build, test, lint, and deploy commands (do not guess).
-2. Populate `AI_HANDOFF.md` with real Current State, Repo Invariants, Architecture, and Known Pitfalls.
-3. Update `.context/cos-board.md` with the project name, date, and close `bootstrap-repo`.
-4. Customize `.agents/skills/verify-project/SKILL.md` with this project's real checks and run it once.
-Report the summary and verification outputs when done.
+ติดตั้ง agent-starter-kit จาก https://github.com/Jakkrich/poteto-starter.git ลงในโปรเจกต์นี้แบบ on-project เท่านั้น:
+1. อ่าน FOR_AGENTS.md ใน repo ต้นทางก่อน
+2. ห้ามติดตั้งอะไรลง global (~/.gemini, ~/.claude, ~/.codex, ~/.grok, ~/.agents, ~/.cursor) เด็ดขาด
+3. รันสคริปต์ .agents/tools/install-project.ps1 (Windows) หรือ install-project.sh (macOS/Linux/WSL) เพื่อติดตั้งชุด starter kit และ sync pstack-claude ลงที่ .agents/plugins/pstack/
+4. วิเคราะห์ codebase จริงของโปรเจกต์นี้แล้ว bootstrap AI_HANDOFF.md, .agents/skills/verify-project/SKILL.md และปิดงาน bootstrap-repo บน .context/cos-board.md พร้อมรัน verify-project 1 รอบ
 ```
 
-Optional: run `/setup-pstack` to customize model roles in `.agents/rules/pstack-models.md` for your environment.
+---
+
+## สั่ง AI อัปเกรดตาม `agent-starter-kit` ล่าสุด (Upgrade via AI)
+
+เมื่อมีการอัปเดตใน `agent-starter-kit` หรือ `pstack-claude` เปิดโปรเจกต์เดิมแล้วสั่ง AI ด้วย Prompt นี้:
+
+```text
+อัปเกรด agent-starter-kit และ pstack-claude ในโปรเจกต์นี้ตาม repo ล่าสุดแบบ on-project:
+1. รัน .\.agents\tools\upgrade-starter-kit.bat -NoPause (Windows) หรือ sh .agents/tools/install-project.sh --upgrade (POSIX)
+   (หากโปรเจกต์นี้ยังเป็นเวอร์ชันเก่าที่ไม่มี upgrade-starter-kit.bat ให้ทำตามขั้นตอน Fresh Install ใน FOR_AGENTS.md ของ https://github.com/Jakkrich/poteto-starter.git)
+2. ตรวจสอบว่า AI_HANDOFF.md, .context/cos-board.md, .agents/skills/verify-project/SKILL.md, .agents/rules/pstack-models.md และกฎเฉพาะโปรเจกต์ใน AGENTS.md / CLAUDE.md / GEMINI.md ยังอยู่ครบไม่ถูกเขียนทับ
+3. สรุปเวอร์ชันใน .agents/starter-kit.json และผลตรวจให้ดู
+```
+
+---
+
+## Manual CLI Usage (Optional)
+
+- **Sync only `pstack-claude`:** `.\.agents\tools\sync-pstack.bat` (Windows) or `sh .agents/tools/sync-pstack.sh` (POSIX)
+- **Upgrade starter kit + `pstack-claude`:** `.\.agents\tools\upgrade-starter-kit.bat` (Windows) or `sh .agents/tools/install-project.sh --upgrade` (POSIX)
+- **Sync `chief-of-staff` + `pstack-claude` inside starter kit:** `.\.agents\tools\sync-all.bat`
 
 ---
 

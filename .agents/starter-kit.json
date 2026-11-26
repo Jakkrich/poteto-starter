@@ -1,0 +1,9 @@
+{
+    "name":  "agent-starter-kit",
+    "sourceRepo":  "https://github.com/Jakkrich/poteto-starter.git",
+    "branch":  "main",
+    "starterKitCommit":  "975a6b7",
+    "pstackSource":  "https://github.com/michael-denyer/pstack-claude.git",
+    "pstackVersion":  "0.9.158",
+    "updatedAt":  "2026-11-26T16:16:27Z"
+}
