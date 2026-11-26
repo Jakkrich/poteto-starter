@@ -18,8 +18,10 @@ agent-starter-kit/
 ├── .context/
 │   └── cos-board.md                 # Active / Archive Chief of Staff board + latest summary
 └── .agents/
-    ├── .gitignore                   # Ignores plugins/ and .cache/ so synced pstack stays out of git
+    ├── .gitignore                   # Ignores plugins/, .cache/, and .backup/ so synced pstack stays out of git
     ├── starter-kit.json             # Provenance manifest (sourceRepo, commit, pstackVersion)
+    ├── assets/
+    │   └── pstack-logo.png          # Official cursor/plugins pstack logo applied by sync-pstack
     ├── docs/
     │   └── pstack-guide-th/         # Thai guide preserved outside synced pstack folder
     ├── rules/

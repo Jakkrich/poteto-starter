@@ -59,7 +59,7 @@ If `.agents/tools/upgrade-starter-kit.bat` does not exist yet (upgrading from an
 
 | Path | Behavior on Install & Upgrade |
 |---|---|
-| `.agents/skills/chief-of-staff/`, `.agents/skills/make-bot-ui/`, `.agents/docs/pstack-guide-th/` | **Managed:** overwritten from latest `agent-starter-kit` |
+| `.agents/skills/chief-of-staff/`, `.agents/skills/make-bot-ui/`, `.agents/docs/pstack-guide-th/`, `.agents/assets/` | **Managed:** overwritten from latest `agent-starter-kit` |
 | `.agents/tools/*` | **File-by-file managed:** updates only starter-kit scripts; custom user scripts in `.agents/tools/` are preserved |
 | `.agents/.gitignore` | **Additive merge:** preserves existing user lines and appends missing `plugins/`, `.cache/`, `.backup/` |
 | `.agents/rules/chief-of-staff.md`, `.agents/rules/pstack-antigravity.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | **Lossless marker/v1 merge:** updates only `<!-- BEGIN AGENT-STARTER-KIT --> ... <!-- END AGENT-STARTER-KIT -->` (or exact untouched v1 stub); custom notes and user-edited v1 files are never overwritten |

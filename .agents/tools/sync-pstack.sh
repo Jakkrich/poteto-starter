@@ -85,6 +85,16 @@ rm -f \
   "$PSTACK_DIR/hooks/codex-hooks.json" \
   "$PSTACK_DIR/hooks/copilot-hooks.json"
 
+CUSTOM_LOGO="$AGENTS_DIR/assets/pstack-logo.png"
+if [ -f "$CUSTOM_LOGO" ]; then
+  mkdir -p "$PSTACK_DIR/assets"
+  cp "$CUSTOM_LOGO" "$PSTACK_DIR/assets/pstack-icon.png"
+  cp "$CUSTOM_LOGO" "$PSTACK_DIR/assets/logo.png"
+  if [ -d "$PSTACK_DIR/.claude-plugin" ]; then
+    cp "$CUSTOM_LOGO" "$PSTACK_DIR/.claude-plugin/icon.png"
+  fi
+fi
+
 VER="unknown"
 if [ -f "$CACHE_DIR/VERSION" ]; then
   VER=$(tr -d ' \r\n' < "$CACHE_DIR/VERSION")

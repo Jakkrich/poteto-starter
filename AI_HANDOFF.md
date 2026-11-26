@@ -13,7 +13,7 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
 | Field | Value |
 |---|---|
 | Repository / Owner | `Jakkrich/poteto-starter` (branch `main`) |
-| Last known commit | `05e7fb4` (preceding this hardening commit) |
+| Last known commit | `4b5bedc` (preceding official pstack logo commit) |
 | Runtime / Stack | PowerShell (`*.ps1`/`*.bat`) + POSIX `sh` (`*.sh`) + Git sparse-checkout + Markdown skills (Antigravity, Codex, Claude Code, Grok) |
 | Build command | None (template repo; `.\.agents\tools\sync-pstack.bat -NoPause` syncs `.agents/plugins/pstack/`) |
 | Test / Verify command | PowerShell syntax check + `install-project.ps1` temp-dir E2E install/upgrade test + machine-neutrality & zero-`.cursor` checks (see §5) |
@@ -44,6 +44,12 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
 - [ ] `<Add known gaps or follow-ups>`
 
 ## 5. Change Log (newest at top)
+
+### 2026-11-27 · Antigravity (Chief of Staff) · Use official `cursor/plugins` `pstack` `logo.png`
+- **What:** Added `.agents/assets/pstack-logo.png` (downloaded from `https://raw.githubusercontent.com/cursor/plugins/main/pstack/assets/logo.png`); updated `.agents/tools/sync-pstack.{ps1,sh}` to apply it over `.agents/plugins/pstack/assets/{pstack-icon.png,logo.png}` and `.claude-plugin/icon.png`; updated `.agents/tools/install-project.{ps1,sh}`, `FOR_AGENTS.md`, and `README.md` to distribute `.agents/assets/`.
+- **Why:** Use the official `poteto`/`cursor/plugins` `pstack` logo on Antigravity/Claude/Codex plugin manifests instead of `pstack-claude`'s purple icon.
+- **Verification:** `sync-pstack.bat -NoPause` applied matching SHA-256 (`672F6791589EF758B0CED2C4C477913FA2758623C438E265639A0D539CE90695`), PowerShell AST + `sh.exe -n` + `non_ascii=0`, and temp-dir `install-project.ps1` check passed.
+- **Pending / Notes for next agent:** None.
 
 ### 2026-11-26 · Antigravity (Chief of Staff) · Harden on-project installer, upgrader, and sync scripts against all overwrite & POSIX edge cases
 - **What:**

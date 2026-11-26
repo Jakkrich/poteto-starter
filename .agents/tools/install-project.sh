@@ -330,6 +330,7 @@ if [ "$TARGET_FULL" != "$STARTER_ROOT" ]; then
   copy_dir_clean "$STARTER_ROOT/.agents/skills/chief-of-staff" "$TARGET_FULL/.agents/skills/chief-of-staff"
   copy_dir_clean "$STARTER_ROOT/.agents/skills/make-bot-ui" "$TARGET_FULL/.agents/skills/make-bot-ui"
   copy_dir_clean "$STARTER_ROOT/.agents/docs/pstack-guide-th" "$TARGET_FULL/.agents/docs/pstack-guide-th"
+  copy_dir_clean "$STARTER_ROOT/.agents/assets" "$TARGET_FULL/.agents/assets"
 
   TARGET_COS_RULE="$TARGET_FULL/.agents/rules/chief-of-staff.md"
   merge_managed_markdown \

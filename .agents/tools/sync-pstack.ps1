@@ -152,6 +152,19 @@ foreach ($hookFile in @(
   }
 }
 
+# Apply tracked official pstack logo if present in .agents/assets/pstack-logo.png
+$CustomLogo = Join-Path $AgentsDir 'assets\pstack-logo.png'
+if (Test-Path -LiteralPath $CustomLogo) {
+  $assetsDir = Join-Path $PstackDir 'assets'
+  New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
+  Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $assetsDir 'pstack-icon.png') -Force
+  Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $assetsDir 'logo.png') -Force
+  $claudePluginDir = Join-Path $PstackDir '.claude-plugin'
+  if (Test-Path -LiteralPath $claudePluginDir) {
+    Copy-Item -LiteralPath $CustomLogo -Destination (Join-Path $claudePluginDir 'icon.png') -Force
+  }
+}
+
 $ver = Get-PstackVersion -Dir $PstackDir -Cache $CacheDir
 $sha = (git -C $CacheDir rev-parse --short HEAD).Trim()
 Write-Host "[OK] pstack-claude (version $ver, commit $sha) ready at $PstackDir" -ForegroundColor Green

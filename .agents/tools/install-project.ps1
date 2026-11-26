@@ -301,6 +301,7 @@ if (-not $IsSelfTarget) {
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\skills\chief-of-staff') -Dest (Join-Path $TargetFull '.agents\skills\chief-of-staff')
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\skills\make-bot-ui') -Dest (Join-Path $TargetFull '.agents\skills\make-bot-ui')
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\docs\pstack-guide-th') -Dest (Join-Path $TargetFull '.agents\docs\pstack-guide-th')
+  Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\assets') -Dest (Join-Path $TargetFull '.agents\assets')
 
   # 2. Lossless marker-block + exact-v1 merge for rules and migrate custom notes from .cursor/rules/chief-of-staff.mdc
   $TargetCosRule = Join-Path $TargetFull '.agents\rules\chief-of-staff.md'
