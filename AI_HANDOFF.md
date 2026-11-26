@@ -13,7 +13,7 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
 | Field | Value |
 |---|---|
 | Repository / Owner | `Jakkrich/poteto-starter` (branch `main`) |
-| Last known commit | `975a6b7` (preceding this migration commit) |
+| Last known commit | `05e7fb4` (preceding this hardening commit) |
 | Runtime / Stack | PowerShell (`*.ps1`/`*.bat`) + POSIX `sh` (`*.sh`) + Git sparse-checkout + Markdown skills (Antigravity, Codex, Claude Code, Grok) |
 | Build command | None (template repo; `.\.agents\tools\sync-pstack.bat -NoPause` syncs `.agents/plugins/pstack/`) |
 | Test / Verify command | PowerShell syntax check + `install-project.ps1` temp-dir E2E install/upgrade test + machine-neutrality & zero-`.cursor` checks (see §5) |
@@ -44,6 +44,17 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
 - [ ] `<Add known gaps or follow-ups>`
 
 ## 5. Change Log (newest at top)
+
+### 2026-11-26 · Antigravity (Chief of Staff) · Harden on-project installer, upgrader, and sync scripts against all overwrite & POSIX edge cases
+- **What:**
+  - Added exact v1 legacy snapshots (`templates/legacy-v1-entry.txt`, `legacy-v1-cursor-rule.txt`, `legacy-v1-pstack-antigravity.txt`, `legacy-v1-pstack-models.txt`) from `c6dbec4` and preserved `legacy-v1-*` in `.agents/tools/sync-chief-of-staff.ps1`.
+  - Wrapped `.agents/rules/chief-of-staff.md` and `.agents/rules/pstack-antigravity.md` in `<!-- BEGIN AGENT-STARTER-KIT --> ... <!-- END AGENT-STARTER-KIT -->` markers and added YAML frontmatter to `.agents/rules/pstack-models.md`.
+  - Hardened `.agents/tools/install-project.{ps1,sh}`: exact-v1-substring & lossless marker merge on `AGENTS.md`/`CLAUDE.md`/`GEMINI.md` and rules; lossless migration of custom notes from `.cursor/rules/chief-of-staff.mdc`; auto-upgrade `pstack-models.md` only when untouched v1; file-by-file `.agents/tools/*` copy; additive `.agents/.gitignore` merge (`plugins/`, `.cache/`, `.backup/`); dirty starter-kit repo `-Upgrade` guard (`-Force`/`--force`); `awk` replacement + JSON escaping in `.sh`.
+  - Hardened `.agents/tools/sync-pstack.{ps1,sh}`: fixed `$PstackDir` -> `$PSTACK_DIR` typo in `.sh`, backed up modified/untracked files inside legacy `.agents/plugins/.git` to `.agents/.backup/` before cleanup, and added shallow `git pull --ff-only` re-clone fallback.
+  - Updated `FOR_AGENTS.md` upgrade table.
+- **Why:** Prevent any data loss when upgrading v1 `poteto-starter` projects or projects with customized rules, tools, `.gitignore`, or `pstack-models.md`, and fix POSIX `sh` edge cases.
+- **Verification:** PowerShell AST + `sh.exe -n` + `non_ascii_bytes=0` across all `.ps1`/`.sh` tools (`PASS`); PowerShell 5.1 adversarial v1 upgrade matrix (`PASS`); Git Bash `sh.exe` adversarial matrix (`PASS`); legacy `.agents/plugins/pstack` backup test (`PASS`).
+- **Pending / Notes for next agent:** None.
 
 ### 2026-11-26 · Antigravity (Chief of Staff) · Migrate to on-project `pstack-claude`, remove `.cursor` & global `pstack`, add AI installer/upgrader
 - **What:**

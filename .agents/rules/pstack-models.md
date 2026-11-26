@@ -1,3 +1,7 @@
+---
+trigger: always_on
+description: Cross-harness pstack per-role model choices
+---
 # pstack-models (on-project cross-harness role sheet)
 # Used by Antigravity, Codex, Claude Code, and Grok Build via .agents/skills/chief-of-staff/harness.md
 #

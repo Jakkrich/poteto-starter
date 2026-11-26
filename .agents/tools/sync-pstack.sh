@@ -17,12 +17,47 @@ REPO_URL="https://github.com/michael-denyer/pstack-claude.git"
 BRANCH="main"
 
 mkdir -p "$PLUGINS_DIR" "$(dirname "$CACHE_DIR")"
-rm -rf "$PLUGINS_DIR/.git"
 
-if [ "$REINSTALL" -eq 0 ] && [ -d "$CACHE_DIR/.git" ]; then
+if [ -d "$PLUGINS_DIR/.git" ]; then
+  STATUS_OUT=$(git -C "$PLUGINS_DIR" -c core.quotepath=false status --porcelain -- pstack 2>/dev/null || true)
+  if [ -n "$STATUS_OUT" ]; then
+    BACKUP_DIR="$AGENTS_DIR/.backup/legacy-pstack-$(date +%Y%m%d-%H%M%S)"
+    COPIED=0
+    OLD_IFS=$IFS
+    IFS='
+'
+    for line in $STATUS_OUT; do
+      [ -z "$line" ] && continue
+      rel=$(printf '%s' "$line" | sed 's/^...//; s/.* -> //; s/^"//; s/"$//')
+      [ -z "$rel" ] && continue
+      src="$PLUGINS_DIR/$rel"
+      if [ -e "$src" ]; then
+        dst="$BACKUP_DIR/$rel"
+        mkdir -p "$(dirname "$dst")"
+        cp -R "$src" "$dst"
+        COPIED=$((COPIED + 1))
+      fi
+    done
+    IFS=$OLD_IFS
+    if [ "$COPIED" -gt 0 ]; then
+      echo "[WARN] Backed up $COPIED local path(s) from legacy .agents/plugins/pstack to $BACKUP_DIR" >&2
+    fi
+  fi
+  rm -rf "$PLUGINS_DIR/.git"
+fi
+
+NEED_CLONE=$REINSTALL
+if [ "$NEED_CLONE" -eq 0 ] && [ -d "$CACHE_DIR/.git" ]; then
   echo "Updating pstack-claude cache in $CACHE_DIR ..."
-  git -C "$CACHE_DIR" pull --ff-only origin "$BRANCH"
+  if ! git -C "$CACHE_DIR" pull --ff-only origin "$BRANCH"; then
+    echo "[WARN] Fast-forward update failed; re-cloning pstack-claude cache cleanly ..." >&2
+    NEED_CLONE=1
+  fi
 else
+  NEED_CLONE=1
+fi
+
+if [ "$NEED_CLONE" -ne 0 ]; then
   rm -rf "$CACHE_DIR"
   echo "Cloning pstack-claude (sparse checkout) from $REPO_URL ($BRANCH) ..."
   git clone --depth 1 --branch "$BRANCH" --filter=blob:none --no-checkout "$REPO_URL" "$CACHE_DIR"
@@ -55,4 +90,4 @@ if [ -f "$CACHE_DIR/VERSION" ]; then
   VER=$(tr -d ' \r\n' < "$CACHE_DIR/VERSION")
 fi
 SHA=$(git -C "$CACHE_DIR" rev-parse --short HEAD)
-echo "[OK] pstack-claude (version $VER, commit $SHA) ready at $PstackDir"
+echo "[OK] pstack-claude (version $VER, commit $SHA) ready at $PSTACK_DIR"

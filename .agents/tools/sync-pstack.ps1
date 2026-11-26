@@ -23,6 +23,42 @@ function Remove-TreeForce {
   Remove-Item -LiteralPath $Path -Recurse -Force
 }
 
+function Backup-LegacyPstackChanges {
+  param([string]$PluginsRoot, [string]$AgentsRoot)
+  $legacyGit = Join-Path $PluginsRoot '.git'
+  if (-not (Test-Path -LiteralPath $legacyGit)) { return }
+
+  $lines = @(& git -C $PluginsRoot -c core.quotepath=false status --porcelain -- pstack 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $lines.Count -eq 0) { return }
+
+  $validLines = @($lines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  if ($validLines.Count -eq 0) { return }
+
+  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $backupRoot = Join-Path $AgentsRoot ".backup\legacy-pstack-$stamp"
+  $copied = 0
+  foreach ($line in $validLines) {
+    if ($line.Length -lt 4) { continue }
+    $rel = $line.Substring(3).Trim()
+    if ($rel -match ' -> (.+)$') { $rel = $Matches[1].Trim() }
+    if ($rel.StartsWith('"') -and $rel.EndsWith('"') -and $rel.Length -ge 2) {
+      $rel = $rel.Substring(1, $rel.Length - 2)
+    }
+    $srcPath = Join-Path $PluginsRoot ($rel -replace '/', '\')
+    if (-not (Test-Path -LiteralPath $srcPath)) { continue }
+    $dstPath = Join-Path $backupRoot ($rel -replace '/', '\')
+    $dstParent = Split-Path -Parent $dstPath
+    if ($dstParent -and -not (Test-Path -LiteralPath $dstParent)) {
+      New-Item -ItemType Directory -Force -Path $dstParent | Out-Null
+    }
+    Copy-Item -LiteralPath $srcPath -Destination $dstPath -Recurse -Force
+    $copied++
+  }
+  if ($copied -gt 0) {
+    Write-Host "[WARN] Backed up $copied local path(s) from legacy .agents/plugins/pstack to $backupRoot" -ForegroundColor Yellow
+  }
+}
+
 function Get-PstackVersion {
   param([string]$Dir, [string]$Cache)
   foreach ($pj in @(
@@ -48,20 +84,24 @@ function Get-PstackVersion {
 New-Item -ItemType Directory -Force -Path $PluginsDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $CacheDir) | Out-Null
 
-# Clean up legacy cursor/plugins sparse-checkout metadata if present
+# Back up any local modifications/untracked files inside legacy cursor/plugins checkout before cleanup
 $LegacyGitDir = Join-Path $PluginsDir '.git'
 if (Test-Path -LiteralPath $LegacyGitDir) {
+  Backup-LegacyPstackChanges -PluginsRoot $PluginsDir -AgentsRoot $AgentsDir
   Remove-TreeForce -Path $LegacyGitDir
 }
 
-if (-not $Reinstall -and (Test-Path -LiteralPath (Join-Path $CacheDir '.git'))) {
+$needClone = $Reinstall -or (-not (Test-Path -LiteralPath (Join-Path $CacheDir '.git')))
+if (-not $needClone) {
   Write-Host "Updating pstack-claude cache in $CacheDir ..."
   git -C $CacheDir pull --ff-only origin $Branch
   if ($LASTEXITCODE -ne 0) {
-    throw "git pull failed with exit code $LASTEXITCODE (pass -Reinstall for a clean clone)"
+    Write-Host '[WARN] Fast-forward update failed; re-cloning pstack-claude cache cleanly ...' -ForegroundColor Yellow
+    $needClone = $true
   }
 }
-else {
+
+if ($needClone) {
   Remove-TreeForce -Path $CacheDir
   Write-Host "Cloning pstack-claude (sparse checkout) from $RepoUrl ($Branch) ..."
   git clone --depth 1 --branch $Branch --filter=blob:none --no-checkout $RepoUrl $CacheDir

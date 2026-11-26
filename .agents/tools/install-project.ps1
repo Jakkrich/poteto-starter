@@ -4,6 +4,7 @@ param(
   [string]$Branch = 'main',
   [switch]$Upgrade,
   [switch]$SkipPstackSync,
+  [switch]$Force,
   [switch]$NoPause
 )
 
@@ -20,6 +21,11 @@ function Remove-TreeForce {
     }
   }
   Remove-Item -LiteralPath $Path -Recurse -Force
+}
+
+function Normalize-Lf {
+  param([string]$Text)
+  return ($Text -replace "`r`n", "`n")
 }
 
 function Write-Utf8File {
@@ -40,12 +46,149 @@ function Copy-ManagedDirectory {
   Copy-Item -LiteralPath $Source -Destination $Dest -Recurse -Force
 }
 
-function Copy-ManagedFile {
-  param([string]$Source, [string]$Dest)
-  if (-not (Test-Path -LiteralPath $Source)) { return }
-  $destParent = Split-Path -Parent $Dest
-  if ($destParent) { New-Item -ItemType Directory -Force -Path $destParent | Out-Null }
-  Copy-Item -LiteralPath $Source -Destination $Dest -Force
+function Copy-ManagedFilesPreserveExtra {
+  param([string]$SourceDir, [string]$DestDir)
+  if (-not (Test-Path -LiteralPath $SourceDir)) { return }
+  New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+  Get-ChildItem -LiteralPath $SourceDir -File -Force | ForEach-Object {
+    Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $DestDir $_.Name) -Force
+  }
+}
+
+function Merge-AdditiveGitignore {
+  param([string]$SourceFile, [string]$DestFile, [string[]]$RequiredEntries)
+  if (-not (Test-Path -LiteralPath $DestFile)) {
+    $raw = Normalize-Lf ([System.IO.File]::ReadAllText($SourceFile, $Utf8NoBom))
+    Write-Utf8File -Path $DestFile -Content ($raw.TrimEnd("`n") + "`n")
+    return
+  }
+  $existingRaw = Normalize-Lf ([System.IO.File]::ReadAllText($DestFile, $Utf8NoBom))
+  $lines = @($existingRaw -split "`n")
+  $trimmedSet = New-Object 'System.Collections.Generic.HashSet[string]'
+  foreach ($ln in $lines) {
+    $t = $ln.Trim()
+    if ($t) { [void]$trimmedSet.Add($t) }
+  }
+  $toAdd = @()
+  foreach ($req in $RequiredEntries) {
+    if (-not $trimmedSet.Contains($req)) { $toAdd += $req }
+  }
+  if ($toAdd.Count -gt 0) {
+    $base = $existingRaw.TrimEnd("`n")
+    if ($base) { $base += "`n" }
+    $merged = $base + ($toAdd -join "`n") + "`n"
+    Write-Utf8File -Path $DestFile -Content $merged
+  }
+}
+
+function Merge-ManagedMarkdown {
+  param(
+    [string]$SourceFile,
+    [string]$DestFile,
+    [string]$LegacyV1File = '',
+    [switch]$PreserveFrontmatter
+  )
+  $srcRaw = (Normalize-Lf ([System.IO.File]::ReadAllText($SourceFile, $Utf8NoBom))).TrimEnd("`n")
+  $markerRegex = [System.Text.RegularExpressions.Regex]::new(
+    '<!-- BEGIN AGENT-STARTER-KIT -->[\s\S]*?<!-- END AGENT-STARTER-KIT -->'
+  )
+  $blockMatch = $markerRegex.Match($srcRaw)
+  if (-not $blockMatch.Success) {
+    throw "Missing BEGIN/END AGENT-STARTER-KIT markers in $SourceFile"
+  }
+  $managedBlock = $blockMatch.Value
+
+  if (-not (Test-Path -LiteralPath $DestFile)) {
+    Write-Utf8File -Path $DestFile -Content ($srcRaw + "`n")
+    return
+  }
+
+  $dstRaw = Normalize-Lf ([System.IO.File]::ReadAllText($DestFile, $Utf8NoBom))
+  $beginIdx = $dstRaw.IndexOf('<!-- BEGIN AGENT-STARTER-KIT -->', [System.StringComparison]::Ordinal)
+  $endIdx = $dstRaw.IndexOf('<!-- END AGENT-STARTER-KIT -->', [System.StringComparison]::Ordinal)
+
+  if ($beginIdx -ge 0 -and $endIdx -gt $beginIdx) {
+    $merged = $markerRegex.Replace($dstRaw, { param($m) $managedBlock }, 1)
+    Write-Utf8File -Path $DestFile -Content $merged
+    return
+  }
+
+  if ($LegacyV1File -and (Test-Path -LiteralPath $LegacyV1File)) {
+    $v1Norm = (Normalize-Lf ([System.IO.File]::ReadAllText($LegacyV1File, $Utf8NoBom))).TrimEnd("`n")
+    if ($dstRaw.TrimEnd("`n") -ceq $v1Norm) {
+      Write-Utf8File -Path $DestFile -Content ($srcRaw + "`n")
+      return
+    }
+    $v1Idx = $dstRaw.IndexOf($v1Norm, [System.StringComparison]::Ordinal)
+    if ($v1Idx -ge 0) {
+      $replacement = if ($PreserveFrontmatter) { $srcRaw } else { $managedBlock }
+      $merged = $dstRaw.Substring(0, $v1Idx) + $replacement + $dstRaw.Substring($v1Idx + $v1Norm.Length)
+      Write-Utf8File -Path $DestFile -Content ($merged.TrimEnd("`n") + "`n")
+      return
+    }
+  }
+
+  if ($PreserveFrontmatter) {
+    $fmMatch = [System.Text.RegularExpressions.Regex]::Match($dstRaw, '^(---\n[\s\S]*?\n---\n)')
+    if ($fmMatch.Success) {
+      $fm = $fmMatch.Value
+      $rest = $dstRaw.Substring($fm.Length).TrimStart("`n")
+      $merged = $fm + $managedBlock + "`n`n" + $rest
+      Write-Utf8File -Path $DestFile -Content ($merged.TrimEnd("`n") + "`n")
+      return
+    }
+  }
+
+  $mergedFallback = $managedBlock + "`n`n" + $dstRaw.TrimStart("`n")
+  Write-Utf8File -Path $DestFile -Content ($mergedFallback.TrimEnd("`n") + "`n")
+}
+
+function Migrate-LegacyCursorRule {
+  param(
+    [string]$TargetRoot,
+    [string]$LegacyCursorTemplate,
+    [string]$TargetRuleFile
+  )
+  $legacyMdc = Join-Path $TargetRoot '.cursor\rules\chief-of-staff.mdc'
+  if (-not (Test-Path -LiteralPath $legacyMdc)) { return }
+
+  $mdcNorm = (Normalize-Lf ([System.IO.File]::ReadAllText($legacyMdc, $Utf8NoBom))).TrimEnd("`n")
+  $v1CursorNorm = ''
+  if (Test-Path -LiteralPath $LegacyCursorTemplate) {
+    $v1CursorNorm = (Normalize-Lf ([System.IO.File]::ReadAllText($LegacyCursorTemplate, $Utf8NoBom))).TrimEnd("`n")
+  }
+
+  if ($v1CursorNorm -and ($mdcNorm -cne $v1CursorNorm)) {
+    $custom = $mdcNorm
+    $v1Idx = $custom.IndexOf($v1CursorNorm, [System.StringComparison]::Ordinal)
+    if ($v1Idx -ge 0) {
+      $custom = ($custom.Substring(0, $v1Idx) + $custom.Substring($v1Idx + $v1CursorNorm.Length)).Trim()
+    }
+    else {
+      $custom = ([System.Text.RegularExpressions.Regex]::Replace($custom, '^---\n[\s\S]*?\n---\n', '')).Trim()
+    }
+
+    if ($custom -and (Test-Path -LiteralPath $TargetRuleFile)) {
+      $ruleRaw = Normalize-Lf ([System.IO.File]::ReadAllText($TargetRuleFile, $Utf8NoBom))
+      if (-not $ruleRaw.Contains($custom)) {
+        $appended = $ruleRaw.TrimEnd("`n") + "`n`n## Migrated Legacy Notes (from .cursor/rules/chief-of-staff.mdc)`n`n" + $custom + "`n"
+        Write-Utf8File -Path $TargetRuleFile -Content $appended
+        Write-Host 'Migrated custom notes from .cursor/rules/chief-of-staff.mdc into .agents/rules/chief-of-staff.md'
+      }
+    }
+  }
+
+  Remove-Item -LiteralPath $legacyMdc -Force
+  Write-Host 'Removed legacy .cursor/rules/chief-of-staff.mdc'
+  $legacyRulesDir = Join-Path $TargetRoot '.cursor\rules'
+  if ((Test-Path -LiteralPath $legacyRulesDir) -and ((Get-ChildItem -LiteralPath $legacyRulesDir -Force | Measure-Object).Count -eq 0)) {
+    Remove-Item -LiteralPath $legacyRulesDir -Force
+  }
+  $legacyCursorDir = Join-Path $TargetRoot '.cursor'
+  if ((Test-Path -LiteralPath $legacyCursorDir) -and ((Get-ChildItem -LiteralPath $legacyCursorDir -Force | Measure-Object).Count -eq 0)) {
+    Remove-Item -LiteralPath $legacyCursorDir -Force
+    Write-Host 'Removed empty legacy .cursor directory'
+  }
 }
 
 function Assert-SafeTargetDir {
@@ -92,8 +235,18 @@ if (-not $PSBoundParameters.ContainsKey('SourceRepo') -or [string]::IsNullOrWhit
   }
 }
 
-# Self-upgrade delegation: fetch upstream source into temp dir and execute its installer
+# Self-upgrade delegation with dirty starter-kit source repo guard
 if ($Upgrade) {
+  if ((Test-Path -LiteralPath (Join-Path $TargetFull '.git')) -and -not $Force) {
+    $originUrl = (git -C $TargetFull remote get-url origin 2>$null | Out-String).Trim()
+    if ($originUrl -match 'poteto-starter|agent-starter-kit') {
+      $dirty = (git -C $TargetFull status --porcelain 2>$null | Out-String).Trim()
+      if ($dirty) {
+        throw "Refusing -Upgrade on dirty starter-kit repository ($TargetFull). Commit/stash changes or use sync-all.bat, or pass -Force."
+      }
+    }
+  }
+
   if (Test-Path -LiteralPath $SourceRepo -PathType Container) {
     $SourceFull = [System.IO.Path]::GetFullPath($SourceRepo).TrimEnd('\', '/')
     if ($SourceFull -ieq $TargetFull) {
@@ -130,40 +283,47 @@ if ($Upgrade) {
 
 $IsSelfTarget = ($TargetFull -ieq $StarterRoot)
 $ProjectName = Split-Path -Leaf $TargetFull
+$TemplatesDir = Join-Path $StarterRoot '.agents\skills\chief-of-staff\templates'
 
 if (-not $IsSelfTarget) {
   Write-Host "Installing/updating starter-kit files into $TargetFull ..."
 
-  # 1. Managed starter-kit files (safe to overwrite on upgrade)
-  Copy-ManagedFile -Source (Join-Path $StarterRoot '.agents\.gitignore') -Dest (Join-Path $TargetFull '.agents\.gitignore')
-  Copy-ManagedFile -Source (Join-Path $StarterRoot '.agents\rules\chief-of-staff.md') -Dest (Join-Path $TargetFull '.agents\rules\chief-of-staff.md')
-  Copy-ManagedFile -Source (Join-Path $StarterRoot '.agents\rules\pstack-antigravity.md') -Dest (Join-Path $TargetFull '.agents\rules\pstack-antigravity.md')
+  # 1. Additive .agents/.gitignore + file-by-file .agents/tools/ + managed skill/doc dirs
+  Merge-AdditiveGitignore `
+    -SourceFile (Join-Path $StarterRoot '.agents\.gitignore') `
+    -DestFile (Join-Path $TargetFull '.agents\.gitignore') `
+    -RequiredEntries @('plugins/', '.cache/', '.backup/')
+
+  Copy-ManagedFilesPreserveExtra `
+    -SourceDir (Join-Path $StarterRoot '.agents\tools') `
+    -DestDir (Join-Path $TargetFull '.agents\tools')
 
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\skills\chief-of-staff') -Dest (Join-Path $TargetFull '.agents\skills\chief-of-staff')
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\skills\make-bot-ui') -Dest (Join-Path $TargetFull '.agents\skills\make-bot-ui')
   Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\docs\pstack-guide-th') -Dest (Join-Path $TargetFull '.agents\docs\pstack-guide-th')
-  Copy-ManagedDirectory -Source (Join-Path $StarterRoot '.agents\tools') -Dest (Join-Path $TargetFull '.agents\tools')
 
-  # 2. Legacy .cursor cleanup (remove old chief-of-staff.mdc and empty .cursor dirs)
-  $LegacyMdc = Join-Path $TargetFull '.cursor\rules\chief-of-staff.mdc'
-  if (Test-Path -LiteralPath $LegacyMdc) {
-    Remove-Item -LiteralPath $LegacyMdc -Force
-    Write-Host 'Removed legacy .cursor/rules/chief-of-staff.mdc'
-  }
-  $LegacyRulesDir = Join-Path $TargetFull '.cursor\rules'
-  if ((Test-Path -LiteralPath $LegacyRulesDir) -and ((Get-ChildItem -LiteralPath $LegacyRulesDir -Force | Measure-Object).Count -eq 0)) {
-    Remove-Item -LiteralPath $LegacyRulesDir -Force
-  }
-  $LegacyCursorDir = Join-Path $TargetFull '.cursor'
-  if ((Test-Path -LiteralPath $LegacyCursorDir) -and ((Get-ChildItem -LiteralPath $LegacyCursorDir -Force | Measure-Object).Count -eq 0)) {
-    Remove-Item -LiteralPath $LegacyCursorDir -Force
-    Write-Host 'Removed empty legacy .cursor directory'
-  }
+  # 2. Lossless marker-block + exact-v1 merge for rules and migrate custom notes from .cursor/rules/chief-of-staff.mdc
+  $TargetCosRule = Join-Path $TargetFull '.agents\rules\chief-of-staff.md'
+  Merge-ManagedMarkdown `
+    -SourceFile (Join-Path $StarterRoot '.agents\rules\chief-of-staff.md') `
+    -DestFile $TargetCosRule `
+    -PreserveFrontmatter
 
-  # 3. Seed-once project-owned files (create ONLY if missing; never overwrite on upgrade)
+  Migrate-LegacyCursorRule `
+    -TargetRoot $TargetFull `
+    -LegacyCursorTemplate (Join-Path $TemplatesDir 'legacy-v1-cursor-rule.txt') `
+    -TargetRuleFile $TargetCosRule
+
+  Merge-ManagedMarkdown `
+    -SourceFile (Join-Path $StarterRoot '.agents\rules\pstack-antigravity.md') `
+    -DestFile (Join-Path $TargetFull '.agents\rules\pstack-antigravity.md') `
+    -LegacyV1File (Join-Path $TemplatesDir 'legacy-v1-pstack-antigravity.txt') `
+    -PreserveFrontmatter
+
+  # 3. Seed-once / untouched-v1-only upgrade for project-owned files
   $TargetHandoff = Join-Path $TargetFull 'AI_HANDOFF.md'
   if (-not (Test-Path -LiteralPath $TargetHandoff)) {
-    $tmplHandoff = Join-Path $StarterRoot '.agents\skills\chief-of-staff\templates\AI_HANDOFF.md'
+    $tmplHandoff = Join-Path $TemplatesDir 'AI_HANDOFF.md'
     $rawHandoff = [System.IO.File]::ReadAllText($tmplHandoff, $Utf8NoBom)
     $seededHandoff = $rawHandoff.Replace('<project-name>', $ProjectName)
     Write-Utf8File -Path $TargetHandoff -Content $seededHandoff
@@ -171,7 +331,7 @@ if (-not $IsSelfTarget) {
 
   $TargetBoard = Join-Path $TargetFull '.context\cos-board.md'
   if (-not (Test-Path -LiteralPath $TargetBoard)) {
-    $tmplBoard = Join-Path $StarterRoot '.agents\skills\chief-of-staff\templates\cos-board.md'
+    $tmplBoard = Join-Path $TemplatesDir 'cos-board.md'
     $rawBoard = [System.IO.File]::ReadAllText($tmplBoard, $Utf8NoBom)
     $today = Get-Date -Format 'yyyy-MM-dd'
     $seededBoard = $rawBoard.Replace('YYYY-MM-DD', $today).Replace('<repo>', $ProjectName)
@@ -191,45 +351,37 @@ if (-not $IsSelfTarget) {
 
   $TargetVerify = Join-Path $TargetFull '.agents\skills\verify-project\SKILL.md'
   if (-not (Test-Path -LiteralPath $TargetVerify)) {
-    Copy-ManagedFile -Source (Join-Path $StarterRoot '.agents\skills\verify-project\SKILL.md') -Dest $TargetVerify
+    $verifyParent = Split-Path -Parent $TargetVerify
+    New-Item -ItemType Directory -Force -Path $verifyParent | Out-Null
+    Copy-Item -LiteralPath (Join-Path $StarterRoot '.agents\skills\verify-project\SKILL.md') -Destination $TargetVerify -Force
   }
 
   $TargetModels = Join-Path $TargetFull '.agents\rules\pstack-models.md'
+  $SrcModels = Join-Path $StarterRoot '.agents\rules\pstack-models.md'
   if (-not (Test-Path -LiteralPath $TargetModels)) {
-    Copy-ManagedFile -Source (Join-Path $StarterRoot '.agents\rules\pstack-models.md') -Dest $TargetModels
+    $modelsParent = Split-Path -Parent $TargetModels
+    New-Item -ItemType Directory -Force -Path $modelsParent | Out-Null
+    Copy-Item -LiteralPath $SrcModels -Destination $TargetModels -Force
+  }
+  else {
+    $legacyModelsPath = Join-Path $TemplatesDir 'legacy-v1-pstack-models.txt'
+    if (Test-Path -LiteralPath $legacyModelsPath) {
+      $dstModelsNorm = (Normalize-Lf ([System.IO.File]::ReadAllText($TargetModels, $Utf8NoBom))).TrimEnd("`n")
+      $v1ModelsNorm = (Normalize-Lf ([System.IO.File]::ReadAllText($legacyModelsPath, $Utf8NoBom))).TrimEnd("`n")
+      if ($dstModelsNorm -ceq $v1ModelsNorm) {
+        Copy-Item -LiteralPath $SrcModels -Destination $TargetModels -Force
+        Write-Host '[INFO] Upgraded untouched v1 .agents/rules/pstack-models.md to cross-harness defaults'
+      }
+    }
   }
 
-  # 4. Managed marker block merge for AGENTS.md, CLAUDE.md, GEMINI.md
-  $MarkerRegex = [System.Text.RegularExpressions.Regex]::new(
-    '<!-- BEGIN AGENT-STARTER-KIT -->[\s\S]*?<!-- END AGENT-STARTER-KIT -->'
-  )
+  # 4. Lossless marker-block + exact-v1 merge for AGENTS.md, CLAUDE.md, GEMINI.md
+  $legacyEntryPath = Join-Path $TemplatesDir 'legacy-v1-entry.txt'
   foreach ($entryName in @('AGENTS.md', 'CLAUDE.md', 'GEMINI.md')) {
-    $srcEntry = Join-Path $StarterRoot $entryName
-    $dstEntry = Join-Path $TargetFull $entryName
-    $srcRaw = [System.IO.File]::ReadAllText($srcEntry, $Utf8NoBom).TrimEnd()
-    $blockMatch = $MarkerRegex.Match($srcRaw)
-    if (-not $blockMatch.Success) {
-      throw "Missing BEGIN/END AGENT-STARTER-KIT markers in $srcEntry"
-    }
-    $managedBlock = $blockMatch.Value
-
-    if (-not (Test-Path -LiteralPath $dstEntry)) {
-      Write-Utf8File -Path $dstEntry -Content ($srcRaw + "`n")
-    }
-    else {
-      $dstRaw = [System.IO.File]::ReadAllText($dstEntry, $Utf8NoBom)
-      if ($MarkerRegex.IsMatch($dstRaw)) {
-        $merged = $MarkerRegex.Replace($dstRaw, { param($m) $managedBlock }, 1)
-        Write-Utf8File -Path $dstEntry -Content $merged
-      }
-      elseif ($dstRaw -match '# AI Agent Instructions & Chief of Staff') {
-        Write-Utf8File -Path $dstEntry -Content ($srcRaw + "`n")
-      }
-      else {
-        $merged = $managedBlock + "`n`n" + $dstRaw.TrimStart("`r", "`n")
-        Write-Utf8File -Path $dstEntry -Content $merged
-      }
-    }
+    Merge-ManagedMarkdown `
+      -SourceFile (Join-Path $StarterRoot $entryName) `
+      -DestFile (Join-Path $TargetFull $entryName) `
+      -LegacyV1File $legacyEntryPath
   }
 }
 

@@ -75,7 +75,7 @@ try {
   }
 
   foreach ($existing in Get-ChildItem -LiteralPath $TemplatesDestDir -Force) {
-    if ($existing.Name -eq 'AI_HANDOFF.md') { continue }
+    if ($existing.Name -eq 'AI_HANDOFF.md' -or $existing.Name -like 'legacy-v1-*') { continue }
     Remove-Item -LiteralPath $existing.FullName -Recurse -Force
   }
   foreach ($tmpl in Get-ChildItem -LiteralPath $UpstreamTemplatesDir -Force) {

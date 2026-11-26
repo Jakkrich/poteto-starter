@@ -59,8 +59,12 @@ If `.agents/tools/upgrade-starter-kit.bat` does not exist yet (upgrading from an
 
 | Path | Behavior on Install & Upgrade |
 |---|---|
-| `.agents/skills/chief-of-staff/`, `.agents/skills/make-bot-ui/`, `.agents/rules/chief-of-staff.md`, `.agents/rules/pstack-antigravity.md`, `.agents/docs/pstack-guide-th/`, `.agents/tools/`, `.agents/.gitignore` | **Managed:** overwritten from latest `agent-starter-kit` |
-| `.agents/plugins/pstack/` | **Synced:** updated from `michael-denyer/pstack-claude` (`gitignored`) |
-| `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | **Marker-merged:** updates only `<!-- BEGIN AGENT-STARTER-KIT --> ... <!-- END AGENT-STARTER-KIT -->`; keeps custom project notes |
-| `AI_HANDOFF.md`, `.context/cos-board.md`, `.agents/skills/verify-project/SKILL.md`, `.agents/rules/pstack-models.md` | **Project-owned:** created only if missing; never overwritten |
+| `.agents/skills/chief-of-staff/`, `.agents/skills/make-bot-ui/`, `.agents/docs/pstack-guide-th/` | **Managed:** overwritten from latest `agent-starter-kit` |
+| `.agents/tools/*` | **File-by-file managed:** updates only starter-kit scripts; custom user scripts in `.agents/tools/` are preserved |
+| `.agents/.gitignore` | **Additive merge:** preserves existing user lines and appends missing `plugins/`, `.cache/`, `.backup/` |
+| `.agents/rules/chief-of-staff.md`, `.agents/rules/pstack-antigravity.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | **Lossless marker/v1 merge:** updates only `<!-- BEGIN AGENT-STARTER-KIT --> ... <!-- END AGENT-STARTER-KIT -->` (or exact untouched v1 stub); custom notes and user-edited v1 files are never overwritten |
+| `.cursor/rules/chief-of-staff.mdc` | **Lossless migration:** preserves any user-added notes into `.agents/rules/chief-of-staff.md` below the marker block before removing `.cursor/` |
+| `.agents/plugins/pstack/` | **Synced:** updated from `michael-denyer/pstack-claude` (`gitignored`); local edits in legacy v1 `cursor/plugins` checkouts are backed up to `.agents/.backup/` first |
+| `AI_HANDOFF.md`, `.context/cos-board.md`, `.agents/skills/verify-project/SKILL.md` | **Project-owned:** created only if missing; never overwritten |
+| `.agents/rules/pstack-models.md` | **User-owned (with untouched-v1 auto-upgrade):** upgraded only when missing or identical to the untouched v1 Cursor-slug default; user edits are never overwritten |
 | `.agents/starter-kit.json` | **Manifest:** records source repo, starter-kit commit, and `pstack-claude` version |

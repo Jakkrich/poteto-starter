@@ -1,6 +1,7 @@
 ---
 trigger: always_on
 ---
+<!-- BEGIN AGENT-STARTER-KIT -->
 # pstack in Antigravity (On-Project `pstack-claude`)
 
 When running `pstack` skills in Antigravity, use the repo-local `pstack-claude` copy at `.agents/plugins/pstack/` and follow `.agents/plugins/pstack/skills/poteto-mode/references/agy-tools.md` along with `.agents/skills/chief-of-staff/harness.md`.
@@ -13,3 +14,4 @@ Key rules:
 - **Models (`.agents/rules/pstack-models.md`):** `invoke_subagent` `Model` accepts ONLY `inherit`, `pro`, `flash`, `flash_lite`. Omit `Model` or pass `"inherit"` when the role says `inherit-parent` or `auto` — never pass Claude or Cursor model slugs.
 - **Questions & Schedules:** Map `AskUserQuestion` -> `ask_question`; `/loop` / `ScheduleWakeup` -> `schedule` (`DurationSeconds` or `CronExpression`).
 - **Bundled skills:** `/deslop`, `/thermos`, `/babysit`, `/fix-ci`, and `/fix-merge-conflicts` live inside `.agents/plugins/pstack/skills/`. Grok Bot webhook + Tailscale UIs use `.agents/skills/make-bot-ui/SKILL.md`.
+<!-- END AGENT-STARTER-KIT -->
