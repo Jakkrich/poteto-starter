@@ -55,7 +55,7 @@ Project governance and handoff hub. Active task board and Chief of Staff status 
   - Uninstalled/removed global `pstack` across Antigravity (`agy plugin uninstall pstack`), Claude Code (`claude plugin uninstall pstack@cursor-plugins` + `cursor-plugins` marketplace), Codex `~/.codex/skills` (`pstack` + `principle-*` dirs), and Cursor caches.
 - **Why:** Standardize on `pstack-claude` (Option A) for Antigravity, Codex, Claude Code, and Grok, eliminate `.cursor/` and global `pstack`, and enable AI-driven on-project install and idempotent upgrades.
 - **Verification:** `sync-pstack.bat -Reinstall -NoPause` (`0.9.158`, `1ab6b82`), `agy plugin list --json` (`agy_pstack_count=0`), `claude plugin list` (`claude_has_pstack=False`), global leftover check (`0`), `.cursor` / `*.mdc` / `[A-Za-z]:\\` checks (`False` / `0` / `0`), PowerShell AST parse (`OK`), and E2E `install-project.ps1` install + `-Upgrade` temp-dir test (`PASS`).
-- **Pending / Notes for next agent:** None.
+- **Pending / Notes for next agent:** Fixed `install-project.ps1` to pure ASCII (`[char]0x2014`) for Windows PowerShell 5.1 UTF-8-without-BOM safety after live clone smoke test caught `â€”` parse error.
 
 ### 2026-11-23 · Chief of Staff (worker db3299e0) · Make README Quick Start machine-neutral
 - **What:** Updated `README.md` section `### 1. Create or copy into a project` to replace `D:\devtools\agent-starter-kit` with GitHub template (`gh repo create --template Jakkrich/poteto-starter --clone`) and a temp `git clone` + `robocopy` flow for existing projects.

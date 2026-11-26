@@ -180,10 +180,11 @@ if (-not $IsSelfTarget) {
       '## Latest summary\r?\n',
       "## Latest summary`nStarter kit installed on-project. Waiting for project bootstrap (fill ``AI_HANDOFF.md`` and customize ``.agents/skills/verify-project/SKILL.md``).`n"
     )
+    $emDash = [char]0x2014
     $seededBoard = [System.Text.RegularExpressions.Regex]::Replace(
       $seededBoard,
       '(\|---\|---\|---\|---\|---\|---\|---\|---\|\r?\n)',
-      "`$1| bootstrap-repo | Populate ``AI_HANDOFF.md`` and customize ``verify-project`` skill from real codebase inspection | ``AI_HANDOFF.md`` has accurate build/test commands & invariants; ``verify-project`` runs cleanly | Investigation | root | queued | Inspect codebase and bootstrap | — |`n"
+      "`$1| bootstrap-repo | Populate ``AI_HANDOFF.md`` and customize ``verify-project`` skill from real codebase inspection | ``AI_HANDOFF.md`` has accurate build/test commands & invariants; ``verify-project`` runs cleanly | Investigation | root | queued | Inspect codebase and bootstrap | $emDash |`n"
     )
     Write-Utf8File -Path $TargetBoard -Content $seededBoard
   }
